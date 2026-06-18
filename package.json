@@ -1,0 +1,13 @@
+{
+  "name": "yt-smart-summary",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "@netlify/blobs": "^8.0.0",
+    "groq-sdk": "^0.37.0",
+    "youtube-transcript": "^1.2.1"
+  },
+  "devDependencies": {
+    "netlify-cli": "^23.15.1"
+  }
+}

@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YT Smart Summary</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d1117;
+      --card: #161b22;
+      --border: #21262d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --accent-dim: rgba(88, 166, 255, 0.12);
+      --accent-border: rgba(88, 166, 255, 0.4);
+      --green: #3fb950;
+      --red: #f85149;
+      --radius: 8px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+      padding: 24px 16px 64px;
+    }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    header {
+      text-align: center;
+      padding: 40px 0 32px;
+    }
+    header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.3px;
+    }
+    header p {
+      color: var(--muted);
+      margin-top: 6px;
+      font-size: 14px;
+    }
+
+    /* Card */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    /* Input */
+    .input-row {
+      display: flex;
+      gap: 10px;
+    }
+    input[type="url"] {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 14px;
+      padding: 10px 14px;
+      outline: none;
+      transition: border-color .15s;
+    }
+    input[type="url"]::placeholder { color: var(--muted); }
+    input[type="url"]:focus { border-color: var(--accent); }
+
+    button {
+      background: var(--accent);
+      border: none;
+      border-radius: 6px;
+      color: #0d1117;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 10px 18px;
+      transition: opacity .15s;
+      white-space: nowrap;
+    }
+    button:hover { opacity: 0.88; }
+    button:disabled { opacity: 0.45; cursor: default; }
+    button.ghost {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    button.ghost:hover { color: var(--text); border-color: var(--muted); }
+
+    /* Manual transcript */
+    details {
+      margin-top: 12px;
+    }
+    summary {
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 13px;
+      list-style: none;
+      user-select: none;
+    }
+    summary::before { content: "▶ "; font-size: 10px; }
+    details[open] summary::before { content: "▼ "; }
+    summary:hover { color: var(--text); }
+
+    textarea {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 13px;
+      line-height: 1.5;
+      margin-top: 10px;
+      min-height: 120px;
+      outline: none;
+      padding: 10px 14px;
+      resize: vertical;
+      width: 100%;
+    }
+    textarea:focus { border-color: var(--accent); }
+    textarea::placeholder { color: var(--muted); }
+
+    /* Progress */
+    .progress-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .status-label {
+      color: var(--muted);
+      font-size: 13px;
+      flex: 1;
+    }
+    .cancel-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 12px;
+      padding: 5px 12px;
+    }
+    .cancel-btn:hover { border-color: var(--red); color: var(--red); }
+
+    .progress-bar {
+      background: var(--border);
+      border-radius: 999px;
+      height: 4px;
+      margin-top: 12px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      background: var(--accent);
+      border-radius: 999px;
+      height: 100%;
+      transition: width 0.4s ease;
+      width: 0%;
+    }
+
+    /* No transcript error */
+    .no-transcript-box {
+      background: rgba(248, 81, 73, 0.08);
+      border: 1px solid rgba(248, 81, 73, 0.3);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+    .no-transcript-box p {
+      color: #f85149;
+      font-size: 13px;
+      margin-bottom: 10px;
+    }
+
+    /* Results */
+    .video-meta {
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+    }
+    .video-title {
+      font-size: 17px;
+      font-weight: 600;
+      line-height: 1.4;
+      margin-bottom: 4px;
+    }
+    .video-channel {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .transcript-badge {
+      background: var(--border);
+      border-radius: 4px;
+      color: var(--muted);
+      display: inline-block;
+      font-size: 11px;
+      margin-left: 8px;
+      padding: 2px 6px;
+    }
+
+    /* Summary sections */
+    .summary-section {
+      margin-bottom: 20px;
+    }
+    .summary-section h2 {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+    .section-tldr {
+      background: var(--accent-dim);
+      border: 1px solid var(--accent-border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+    }
+    .section-tldr h2 { color: var(--accent); }
+    .section-tldr p {
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 500;
+      line-height: 1.65;
+    }
+    .section-body p {
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.65;
+      margin-bottom: 6px;
+    }
+    .section-body ul, .section-body ol {
+      padding-left: 20px;
+    }
+    .section-body li {
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.65;
+      margin-bottom: 4px;
+    }
+
+    /* Actions */
+    .result-actions {
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+      padding-top: 16px;
+    }
+    .copy-feedback {
+      align-items: center;
+      color: var(--green);
+      display: none;
+      font-size: 13px;
+      gap: 4px;
+    }
+    .copy-feedback.visible { display: flex; }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>YT Smart Summary</h1>
+    <p>Rzetelne podsumowanie każdego wideo YouTube w 4 sekcjach</p>
+  </header>
+
+  <!-- Input -->
+  <div class="card" id="input-section">
+    <div class="input-row">
+      <input type="url" id="url-input" placeholder="https://youtube.com/watch?v=..." autocomplete="off" />
+      <button id="submit-btn">Podsumuj</button>
+    </div>
+    <details id="manual-details">
+      <summary>Brak napisów? Wklej transkrypt ręcznie</summary>
+      <textarea id="manual-input" placeholder="Wklej tutaj transkrypt, napisy lub dowolny tekst z wideo..."></textarea>
+    </details>
+  </div>
+
+  <!-- Progress -->
+  <div class="card hidden" id="progress-section">
+    <div class="progress-wrap">
+      <span class="status-label" id="status-label">Uruchamiam...</span>
+      <button class="cancel-btn" id="cancel-btn">Anuluj</button>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill" id="progress-fill"></div>
+    </div>
+  </div>
+
+  <!-- No transcript prompt -->
+  <div class="card hidden" id="no-transcript-section">
+    <div class="no-transcript-box">
+      <p style="font-size:14px; font-weight:600; margin-bottom:8px;">Nie udało się automatycznie pobrać transkryptu</p>
+      <p>YouTube blokuje automatyczne pobieranie napisów z serwerów chmurowych. Wklej transkrypt ręcznie — to 3 kroki:</p>
+    </div>
+    <div style="margin:14px 0; display:flex; flex-direction:column; gap:8px;">
+      <div style="color:var(--muted); font-size:13px; display:flex; gap:8px; align-items:flex-start;">
+        <span style="color:var(--accent); font-weight:600; min-width:20px;">1.</span>
+        <span>Otwórz wideo na YouTube</span>
+      </div>
+      <div style="color:var(--muted); font-size:13px; display:flex; gap:8px; align-items:flex-start;">
+        <span style="color:var(--accent); font-weight:600; min-width:20px;">2.</span>
+        <span>Kliknij menu (⋯) pod wideo → <strong style="color:var(--text)">Pokaż transkrypt</strong> → zaznacz wszystko i skopiuj</span>
+      </div>
+      <div style="color:var(--muted); font-size:13px; display:flex; gap:8px; align-items:flex-start;">
+        <span style="color:var(--accent); font-weight:600; min-width:20px;">3.</span>
+        <span>Wklej poniżej i kliknij Analizuj</span>
+      </div>
+    </div>
+    <a id="yt-link" href="#" target="_blank" rel="noopener" style="display:inline-block; color:var(--accent); font-size:13px; margin-bottom:10px;">Otwórz wideo w nowej karcie →</a>
+    <textarea id="manual-retry-input" placeholder="Wklej transkrypt tutaj..." style="min-height:140px;"></textarea>
+    <div style="margin-top:10px; display:flex; gap:10px;">
+      <button id="retry-btn">Analizuj</button>
+      <button class="ghost" id="back-btn">← Wróć</button>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="card hidden" id="results-section">
+    <div class="video-meta">
+      <div class="video-title" id="result-title"></div>
+      <div class="video-channel">
+        <span id="result-channel"></span>
+        <span class="transcript-badge" id="result-badge"></span>
+      </div>
+    </div>
+    <div id="summary-content"></div>
+    <div class="result-actions">
+      <button id="copy-btn">Kopiuj Markdown</button>
+      <span class="copy-feedback" id="copy-feedback">✓ Skopiowano</span>
+      <button class="ghost" id="reset-btn" style="margin-left:auto;">Analizuj kolejne</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  let currentJobId = null;
+  let pollInterval = null;
+  let currentUrl = '';
+  let rawSummary = '';
+
+  const STATUS_LABELS = {
+    starting: 'Uruchamiam...',
+    fetching_transcript: 'Pobieram transkrypt z YouTube...',
+    fetching_metadata: 'Pobieranie metadanych...',
+    generating_summary: 'AI generuje podsumowanie...',
+    done: 'Gotowe',
+    cancelled: 'Anulowano',
+    error: 'Błąd',
+  };
+
+  // ── Submit ──────────────────────────────────────────────────────────────────
+
+  $('submit-btn').addEventListener('click', startJob);
+  $('url-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') startJob(); });
+
+  function extractVideoId(url) {
+    try {
+      const u = new URL(url);
+      if (u.hostname === 'youtu.be') return u.pathname.slice(1).split('?')[0];
+      if (u.hostname.includes('youtube.com')) return u.searchParams.get('v');
+    } catch {}
+    return null;
+  }
+
+  async function startJob(manualOverride) {
+    const url = $('url-input').value.trim();
+    if (!url) { $('url-input').focus(); return; }
+    let manual = manualOverride || $('manual-input').value.trim() || '';
+
+    currentUrl = url;
+    currentJobId = crypto.randomUUID();
+
+    showSection('progress');
+
+    // Pobierz transkrypt przez edge function (Cloudflare — nie blokowany przez YT)
+    if (!manual) {
+      const videoId = extractVideoId(url);
+      if (videoId) {
+        setProgress(5, 'Pobieram transkrypt z YouTube...');
+        try {
+          const res = await fetch(`/api/transcript?v=${videoId}`);
+          const data = await res.json();
+          if (data.transcript && data.transcript.length > 20) {
+            manual = data.transcript;
+            console.log('Edge transcript OK, length:', manual.length);
+          }
+        } catch (err) {
+          console.error('Edge transcript error:', err.message);
+        }
+      }
+    }
+
+    setProgress(10, 'Uruchamiam analizę...');
+
+    try {
+      await fetch('/.netlify/functions/summarize-background', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, jobId: currentJobId, manualTranscript: manual }),
+      });
+    } catch (err) {
+      showError('Błąd połączenia z serwerem: ' + err.message);
+      return;
+    }
+
+    pollInterval = setInterval(pollStatus, 2000);
+  }
+
+  // ── Retry with manual transcript ───────────────────────────────────────────
+
+  $('retry-btn').addEventListener('click', () => {
+    const manual = $('manual-retry-input').value.trim();
+    if (!manual) { $('manual-retry-input').focus(); return; }
+    showSection('progress');
+    startJobWithManual(currentUrl, manual);
+  });
+
+  async function startJobWithManual(url, manual) {
+    currentJobId = crypto.randomUUID();
+    setProgress(0, 'Uruchamiam...');
+
+    try {
+      await fetch('/.netlify/functions/summarize-background', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, jobId: currentJobId, manualTranscript: manual }),
+      });
+    } catch (err) {
+      showError('Błąd połączenia z serwerem: ' + err.message);
+      return;
+    }
+
+    pollInterval = setInterval(pollStatus, 2000);
+  }
+
+  $('back-btn').addEventListener('click', () => showSection('input'));
+
+  // ── Cancel ─────────────────────────────────────────────────────────────────
+
+  $('cancel-btn').addEventListener('click', async () => {
+    clearInterval(pollInterval);
+    if (currentJobId) {
+      await fetch(`/.netlify/functions/status?jobId=${currentJobId}&cancel=1`).catch(() => {});
+    }
+    showSection('input');
+  });
+
+  // ── Poll ───────────────────────────────────────────────────────────────────
+
+  async function pollStatus() {
+    if (!currentJobId) return;
+    try {
+      const res = await fetch(`/.netlify/functions/status?jobId=${currentJobId}`);
+      if (!res.ok) return;
+      const data = await res.json();
+
+      setProgress(data.progress || 0, STATUS_LABELS[data.status] || data.status);
+
+      if (data.status === 'done') {
+        clearInterval(pollInterval);
+        showResults(data);
+      } else if (data.status === 'error') {
+        clearInterval(pollInterval);
+        if (data.error === 'no_transcript') {
+          $('yt-link').href = currentUrl;
+          showSection('no-transcript');
+        } else {
+          showError(data.error || 'Nieznany błąd');
+        }
+      } else if (data.status === 'cancelled') {
+        clearInterval(pollInterval);
+        showSection('input');
+      }
+    } catch {}
+  }
+
+  // ── UI helpers ─────────────────────────────────────────────────────────────
+
+  function showSection(name) {
+    $('input-section').classList.toggle('hidden', name !== 'input');
+    $('progress-section').classList.toggle('hidden', name !== 'progress');
+    $('no-transcript-section').classList.toggle('hidden', name !== 'no-transcript');
+    $('results-section').classList.toggle('hidden', name !== 'results');
+  }
+
+  function setProgress(pct, label) {
+    $('progress-fill').style.width = pct + '%';
+    $('status-label').textContent = label;
+  }
+
+  function showError(msg) {
+    showSection('input');
+    alert('Błąd: ' + msg);
+  }
+
+  function showResults(data) {
+    $('result-title').textContent = data.title || '';
+    $('result-channel').textContent = data.channel || '';
+    $('result-badge').textContent = data.transcriptSource === 'manual' ? 'ręczny transkrypt'
+      : data.transcriptSource === 'youtube' ? 'napisy YT' : '';
+
+    rawSummary = data.summary || '';
+    $('summary-content').innerHTML = renderSummary(rawSummary);
+    showSection('results');
+  }
+
+  // ── Markdown renderer ──────────────────────────────────────────────────────
+
+  function renderSummary(md) {
+    const sections = [];
+    let current = null;
+
+    for (const line of md.split('\n')) {
+      if (line.startsWith('## ')) {
+        if (current) sections.push(current);
+        current = { heading: line.slice(3).trim(), lines: [] };
+      } else if (current) {
+        current.lines.push(line);
+      }
+    }
+    if (current) sections.push(current);
+
+    if (sections.length === 0) {
+      return `<div class="summary-section section-body"><p>${escHtml(md)}</p></div>`;
+    }
+
+    return sections.map((sec) => {
+      const isTldr = sec.heading.toLowerCase().includes('tl;dr') || sec.heading.toLowerCase().includes('tldr');
+      const cls = isTldr ? 'summary-section section-tldr' : 'summary-section';
+      const body = renderLines(sec.lines);
+      return `<div class="${cls}"><h2>${escHtml(sec.heading)}</h2><div class="section-body">${body}</div></div>`;
+    }).join('');
+  }
+
+  function renderLines(lines) {
+    const blocks = [];
+    let listType = null;
+    let listItems = [];
+
+    const flushList = () => {
+      if (listItems.length === 0) return;
+      const tag = listType === 'ol' ? 'ol' : 'ul';
+      blocks.push(`<${tag}>${listItems.map((i) => `<li>${i}</li>`).join('')}</${tag}>`);
+      listItems = [];
+      listType = null;
+    };
+
+    for (const raw of lines) {
+      const line = raw.trim();
+      if (!line) { flushList(); continue; }
+
+      const ulMatch = line.match(/^[-*]\s+(.+)/);
+      const olMatch = line.match(/^\d+\.\s+(.+)/);
+
+      if (ulMatch) {
+        if (listType === 'ol') flushList();
+        listType = 'ul';
+        listItems.push(escHtml(ulMatch[1]));
+      } else if (olMatch) {
+        if (listType === 'ul') flushList();
+        listType = 'ol';
+        listItems.push(escHtml(olMatch[1]));
+      } else {
+        flushList();
+        blocks.push(`<p>${escHtml(line)}</p>`);
+      }
+    }
+    flushList();
+    return blocks.join('');
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // ── Copy ───────────────────────────────────────────────────────────────────
+
+  $('copy-btn').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(rawSummary);
+      $('copy-feedback').classList.add('visible');
+      setTimeout(() => $('copy-feedback').classList.remove('visible'), 2000);
+    } catch {
+      prompt('Skopiuj ręcznie:', rawSummary);
+    }
+  });
+
+  // ── Reset ──────────────────────────────────────────────────────────────────
+
+  $('reset-btn').addEventListener('click', () => {
+    $('url-input').value = '';
+    $('manual-input').value = '';
+    $('manual-retry-input').value = '';
+    rawSummary = '';
+    currentJobId = null;
+    showSection('input');
+    $('url-input').focus();
+  });
+</script>
+
+</body>
+</html>
