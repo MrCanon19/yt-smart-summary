@@ -1,6 +1,5 @@
 import { getStore } from "@netlify/blobs";
 import Groq from "groq-sdk";
-import { YoutubeTranscript } from "youtube-transcript";
 
 const YT_API_KEY = process.env.YOUTUBE_API_KEY;
 
@@ -8,6 +7,18 @@ export const config = {
   type: "background",
 };
 
+
+async function fetchTranscriptSupadata(videoId) {
+  const apiKey = process.env.SUPADATA_API_KEY;
+  if (!apiKey) return null;
+  const res = await fetch(
+    `https://api.supadata.ai/v1/youtube/transcript?videoId=${videoId}&text=true`,
+    { headers: { "x-api-key": apiKey }, signal: AbortSignal.timeout(15000) }
+  );
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.content && data.content.length > 20 ? data.content : null;
+}
 
 async function fetchTranscriptTimedtext(videoId) {
   // Step 1: get list of available caption tracks (no watch page scraping needed)
@@ -84,8 +95,21 @@ async function runJob(store, jobId, url, manualTranscript) {
     transcriptSource = "manual";
     console.log("Using manual transcript, length:", transcript.length);
   } else {
-    // Próba 1: YouTube timedtext API (nie wymaga scrapingu strony)
+    // Próba 1: Supadata API (niezawodne, omija blokadę YouTube dla datacenter IP)
     try {
+      const raw = await fetchTranscriptSupadata(videoId);
+      if (raw) {
+        transcript = raw.slice(0, 20_000);
+        if (raw.length > 20_000) transcript += "\n\n[TRANSKRYPT UCIĘTY]";
+        transcriptSource = "youtube";
+        console.log("Supadata transcript OK, length:", transcript.length);
+      }
+    } catch (err) {
+      console.error("Supadata transcript error:", err.message);
+    }
+
+    // Próba 2: YouTube timedtext API (darmowy fallback)
+    if (!transcript) try {
       const raw = await fetchTranscriptTimedtext(videoId);
       if (raw) {
         transcript = raw.slice(0, 20_000);
@@ -95,20 +119,6 @@ async function runJob(store, jobId, url, manualTranscript) {
       }
     } catch (err) {
       console.error("Timedtext transcript error:", err.message);
-    }
-
-    // Próba 2: youtube-transcript library (fallback)
-    if (!transcript) try {
-      const items = await YoutubeTranscript.fetchTranscript(videoId);
-      if (items && items.length > 0) {
-        const raw = items.map((t) => t.text).join(" ");
-        transcript = raw.slice(0, 20_000);
-        if (raw.length > 20_000) transcript += "\n\n[TRANSKRYPT UCIĘTY]";
-        transcriptSource = "youtube";
-        console.log("Library transcript OK, length:", transcript.length);
-      }
-    } catch (err) {
-      console.error("Library transcript error:", err.message);
     }
 
     // Próba 3: Mac service (opcjonalny — działa gdy MIKRUS_AUDIO_URL skonfigurowane)
