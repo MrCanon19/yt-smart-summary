@@ -368,7 +368,7 @@
 
   // ── Submit ──────────────────────────────────────────────────────────────────
 
-  $('submit-btn').addEventListener('click', startJob);
+  $('submit-btn').addEventListener('click', () => startJob());
   $('url-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') startJob(); });
 
   function extractVideoId(url) {
