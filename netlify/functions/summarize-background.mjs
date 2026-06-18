@@ -8,32 +8,29 @@ export const config = {
   type: "background",
 };
 
-const BROWSER_HEADERS = {
-  "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-  "Accept-Language": "en-US,en;q=0.9,pl;q=0.8",
-  "Cache-Control": "no-cache",
-  "Sec-Fetch-Dest": "document",
-  "Sec-Fetch-Mode": "navigate",
-  "Sec-Fetch-Site": "none",
-  "Upgrade-Insecure-Requests": "1",
-};
 
-async function fetchTranscriptDirect(videoId) {
-  const timeout = AbortSignal.timeout(8000);
-  const html = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
-    headers: BROWSER_HEADERS,
-    signal: timeout,
-  }).then((r) => r.text());
+async function fetchTranscriptTimedtext(videoId) {
+  // Step 1: get list of available caption tracks (no watch page scraping needed)
+  const listRes = await fetch(
+    `https://www.youtube.com/api/timedtext?v=${videoId}&type=list`,
+    { signal: AbortSignal.timeout(8000) }
+  );
+  if (!listRes.ok) return null;
+  const listXml = await listRes.text();
+  if (!listXml.includes("lang_code")) return null;
 
-  const match = html.match(/"captionTracks":\s*(\[.*?\])/);
-  if (!match) return null;
+  // Pick first available language (prefer auto-generated 'a.' prefix tracks)
+  const autoMatch = listXml.match(/lang_code="(a\.[^"]+)"/);
+  const anyMatch = listXml.match(/lang_code="([^"]+)"/);
+  const lang = (autoMatch || anyMatch)?.[1];
+  if (!lang) return null;
 
-  const tracks = JSON.parse(match[1]);
-  if (!tracks.length) return null;
-
-  const captionUrl = tracks[0].baseUrl + "&fmt=json3";
-  const captionRes = await fetch(captionUrl, { signal: AbortSignal.timeout(8000) });
+  // Step 2: fetch the actual transcript
+  const captionRes = await fetch(
+    `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=json3`,
+    { signal: AbortSignal.timeout(8000) }
+  );
+  if (!captionRes.ok) return null;
   const captionData = await captionRes.json();
 
   const text = (captionData.events || [])
@@ -87,17 +84,17 @@ async function runJob(store, jobId, url, manualTranscript) {
     transcriptSource = "manual";
     console.log("Using manual transcript, length:", transcript.length);
   } else {
-    // Próba 1: własna implementacja z pełnymi browser headers
+    // Próba 1: YouTube timedtext API (nie wymaga scrapingu strony)
     try {
-      const raw = await fetchTranscriptDirect(videoId);
+      const raw = await fetchTranscriptTimedtext(videoId);
       if (raw) {
         transcript = raw.slice(0, 20_000);
         if (raw.length > 20_000) transcript += "\n\n[TRANSKRYPT UCIĘTY]";
         transcriptSource = "youtube";
-        console.log("Direct transcript OK, length:", transcript.length);
+        console.log("Timedtext transcript OK, length:", transcript.length);
       }
     } catch (err) {
-      console.error("Direct transcript error:", err.message);
+      console.error("Timedtext transcript error:", err.message);
     }
 
     // Próba 2: youtube-transcript library (fallback)
