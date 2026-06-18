@@ -338,10 +338,11 @@
         <span id="result-channel"></span>
         <span class="transcript-badge" id="result-badge"></span>
       </div>
+      <a id="result-yt-link" href="#" target="_blank" rel="noopener" style="display:inline-block; margin-top:6px; color:var(--accent); font-size:13px; text-decoration:none; opacity:0.8;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.8'">Otwórz na YouTube →</a>
     </div>
     <div id="summary-content"></div>
     <div class="result-actions">
-      <button id="copy-btn">Kopiuj Markdown</button>
+      <button id="copy-btn">Kopiuj tekst</button>
       <span class="copy-feedback" id="copy-feedback">✓ Skopiowano</span>
       <button class="ghost" id="reset-btn" style="margin-left:auto;">Analizuj kolejne</button>
     </div>
@@ -516,6 +517,7 @@
     $('result-channel').textContent = data.channel || '';
     $('result-badge').textContent = data.transcriptSource === 'manual' ? 'ręczny transkrypt'
       : data.transcriptSource === 'youtube' ? 'napisy YT' : '';
+    $('result-yt-link').href = currentUrl;
 
     rawSummary = data.summary || '';
     $('summary-content').innerHTML = renderSummary(rawSummary);
@@ -593,13 +595,22 @@
 
   // ── Copy ───────────────────────────────────────────────────────────────────
 
+  function toPlainText(md) {
+    return md
+      .replace(/^## (.+)$/gm, '$1')
+      .replace(/^[-*] (.+)$/gm, '• $1')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
   $('copy-btn').addEventListener('click', async () => {
+    const text = toPlainText(rawSummary);
     try {
-      await navigator.clipboard.writeText(rawSummary);
+      await navigator.clipboard.writeText(text);
       $('copy-feedback').classList.add('visible');
       setTimeout(() => $('copy-feedback').classList.remove('visible'), 2000);
     } catch {
-      prompt('Skopiuj ręcznie:', rawSummary);
+      prompt('Skopiuj ręcznie:', text);
     }
   });
 
