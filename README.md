@@ -2,7 +2,7 @@
 
 Wklej link do wideo YouTube i otrzymaj rzetelne podsumowanie w 4 sekcjach. Za darmo.
 
-**Demo:** https://yt-smart-summary-mrcanon.netlify.app
+**Demo:** https://smart-yt-summary.netlify.app
 
 ---
 
