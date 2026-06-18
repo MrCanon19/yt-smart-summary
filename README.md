@@ -1,38 +1,49 @@
 # YT Smart Summary
 
-Structured YouTube video summaries in 4 sections, powered by Groq LLaMA (free tier).
+Wklej link do wideo YouTube i otrzymaj rzetelne podsumowanie w 4 sekcjach. Za darmo.
 
-**Live:** https://yt-smart-summary-mrcanon.netlify.app
+**Demo:** https://yt-smart-summary-mrcanon.netlify.app
 
-## What it does
+---
 
-Paste a YouTube URL and get:
+## Co robi
 
-- **TL;DR** — 1-2 sentences capturing the core message
-- **Key points** — 3-5 bullet points with concrete facts
-- **Main insights** — what's non-obvious, what the title doesn't tell you
-- **Remember** — 3 practical takeaways
+Analizuje transkrypt wideo i zwraca:
 
-Responds in the language of the video.
+- **TL;DR** — 1–2 zdania oddające sedno. Czytasz i wiesz, czy warto oglądać.
+- **Kluczowe punkty** — 3–5 konkretnych faktów lub argumentów z wideo
+- **Główne wnioski** — co nieoczywistego mówi autor, czego nie zdradza tytuł
+- **Co warto zapamiętać** — 3 praktyczne wskazówki lub kluczowe fakty
+
+Odpowiada w języku wideo (polskie wideo → polskie podsumowanie).
+
+## Jak działa
+
+1. Podajesz link do YouTube
+2. Aplikacja pobiera napisy i wysyła je do AI
+3. Dostajesz gotowe podsumowanie w kilkanaście sekund
+
+Jeśli wideo nie ma automatycznych napisów, aplikacja poprosi o ręczne wklejenie transkryptu (YouTube → menu ⋯ → Pokaż transkrypt).
 
 ## Stack
 
 - Frontend: vanilla JS, dark theme
-- Backend: Netlify Functions (ESM) + Netlify Edge Functions
-- AI: Groq `llama-3.3-70b-versatile` (free tier)
-- Transcript: YouTube auto-captions (via Edge Function on Cloudflare)
-- Job storage: Netlify Blobs
+- Backend: Netlify Functions (background, ESM) + Netlify Edge Functions
+- AI: Groq `llama-3.3-70b-versatile` (darmowy tier)
+- Storage: Netlify Blobs (przechowywanie stanu zadań)
 
-## Deploy your own
+## Uruchom własną instancję
 
-1. Fork this repo
-2. Connect to Netlify
-3. Add env vars:
-   - `GROQ_API_KEY` — get free at [console.groq.com](https://console.groq.com)
-   - `YOUTUBE_API_KEY` — optional, for video title/channel display
+**Wymagania:** konto Netlify (darmowe), klucz Groq API (darmowy)
 
-### Optional: Mac service for videos without captions
+```bash
+git clone https://github.com/MrCanon19/yt-smart-summary
+cd yt-smart-summary
+```
 
-If a video has no auto-captions, the tool asks you to paste the transcript manually. Alternatively, run the Mac audio service from [yt-summarizer-o.mietek](https://github.com/MrCanon19/yt-summarizer-o.mietek) and set:
-- `MIKRUS_AUDIO_URL` — ngrok URL of your local service
-- `MIKRUS_AUDIO_SECRET` — auth secret
+Połącz repo z Netlify i dodaj zmienne środowiskowe:
+
+| Zmienna | Opis | Wymagana |
+|---|---|---|
+| `GROQ_API_KEY` | Klucz API Groq — pobierz na [console.groq.com](https://console.groq.com) | tak |
+| `YOUTUBE_API_KEY` | Klucz YouTube Data API v3 — do wyświetlania tytułu i kanału | nie |
